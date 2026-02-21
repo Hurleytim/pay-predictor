@@ -9,6 +9,7 @@ const T = {
   red:"#E05555", redL:"rgba(224,85,85,0.10)",
   blue:"#4A9EFF", blueL:"rgba(74,158,255,0.10)",
   purple:"#9B6FE8", purpleL:"rgba(155,111,232,0.10)",
+  teal:"#00D4C8", tealL:"rgba(0,212,200,0.10)",
 };
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -38,6 +39,7 @@ const DUTY_TYPES = [
   { id:"WKCXLD",   label:"Cancelled Work Day",     hasOverride:false, isCancelled:true,  isVac:false, isSick:false, vacDays:0 },
   { id:"VAC_WEEK", label:"Vacation Week (7 days)", hasOverride:false, isCancelled:false, isVac:true,  isSick:false, vacDays:1 },
   { id:"VAC_DAY",  label:"Vacation Day",           hasOverride:false, isCancelled:false, isVac:true,  isSick:false, vacDays:1 },
+  { id:"FLY",      label:"Fly Through Hours",      hasOverride:false, isCancelled:false, isVac:false, isSick:false, isFly:true, vacDays:0 },
 ];
 
 const DOW          = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
@@ -62,10 +64,14 @@ function calcDay(day, workDayNum) {
   if (!day.active) return { base:0, ot:0, override:0, holiday:0, vac:0, total:0 };
   const dt = getDT(day.dutyType);
   if (dt.isVac) {
-    return { base:0, ot:0, override:0, holiday:0, vac:VAC_HOURS_DAY, total:VAC_HOURS_DAY };
+    return { base:0, ot:0, override:0, holiday:0, vac:VAC_HOURS_DAY, fly:0, total:VAC_HOURS_DAY };
   }
   if (dt.isSick) {
-    return { base:BASE_HOURS, ot:0, override:0, holiday:0, vac:0, total:BASE_HOURS, isOT:false, overElig:false };
+    return { base:BASE_HOURS, ot:0, override:0, holiday:0, vac:0, fly:0, total:BASE_HOURS, isOT:false, overElig:false };
+  }
+  if (dt.isFly) {
+    const fly = day.flyHours || 0;
+    return { base:0, ot:0, override:0, holiday:0, vac:0, fly, total:fly, isOT:false, overElig:false };
   }
   const base     = BASE_HOURS;
   const autoOT   = workDayNum > OT_THRESHOLD;
@@ -74,20 +80,18 @@ function calcDay(day, workDayNum) {
   const overElig = (dt.hasOverride || day.overrideOn) && !dt.isCancelled;
   const override = overElig ? OVERRIDE_PCT*(base+ot) : 0;
   const holiday  = day.holiday ? HOLIDAY_HOURS : 0;
-  return { base, ot, override, holiday, vac:0, total:base+ot+override+holiday, isOT, overElig };
+  return { base, ot, override, holiday, vac:0, fly:0, total:base+ot+override+holiday, isOT, overElig };
 }
 
 // ─── BASELINE ESTIMATE ───────────────────────────────────────────────────────
 function baseSlotHours(dayNum) {
   return dayNum <= OT_THRESHOLD ? BASE_HOURS : BASE_HOURS + OT_HOURS;
 }
-
 function calcBaseline(baseDays) {
   let h=0;
   for(let i=1;i<=baseDays;i++) h += baseSlotHours(i);
   return h;
 }
-
 function calcHybridEstimate(loggedHours, loggedWorkDays, vacationDays, baseDays) {
   const usedSlots = loggedWorkDays + vacationDays;
   let remaining = 0;
@@ -104,7 +108,7 @@ function buildGrid(s, e) {
   const days=[]; let cur=new Date(start);
   while(cur<=end){
     days.push({ date:dateStr(cur), active:false, dutyType:"IP",
-      otManual:null, overrideOn:false, holiday:false });
+      otManual:null, overrideOn:false, holiday:false, flyHours:0, flyFormat:"decimal" });
     cur=addDays(cur,1);
   }
   return days;
@@ -133,6 +137,72 @@ function Pill({ label, active, onClick, color }) {
       fontFamily:"'Roboto Mono',monospace",cursor:"pointer",
       transition:"all 0.15s",whiteSpace:"nowrap",
     }}>{label}</button>
+  );
+}
+
+// ─── FLY HOURS INPUT ─────────────────────────────────────────────────────────
+function parseHours(raw, format) {
+  const n = parseFloat(raw);
+  if (isNaN(n) || n < 0) return 0;
+  if (format === "hhmm") {
+    const hrs  = Math.floor(n);
+    const mins = Math.round((n - hrs) * 100);
+    return Math.round((hrs + mins / 60) * 1000) / 1000;
+  }
+  return Math.round(n * 1000) / 1000;
+}
+
+function FlyHoursInput({ value, format, onChangeValue, onChangeFormat }) {
+  const [raw, setRaw] = useState(value > 0 ? String(value) : "");
+
+  const commit = v => {
+    const parsed = parseHours(v, format);
+    onChangeValue(parsed);
+  };
+
+  const toggleFormat = () => {
+    const newFmt = format === "decimal" ? "hhmm" : "decimal";
+    onChangeFormat(newFmt);
+    const parsed = parseHours(raw, newFmt);
+    onChangeValue(parsed);
+  };
+
+  const decimalDisplay = value > 0 ? fmtH(value) + " hrs" : null;
+
+  return (
+    <div style={{ marginTop:4 }}>
+      <div style={{ fontSize:10,color:T.teal,fontFamily:"'Roboto Mono',monospace",letterSpacing:1,marginBottom:6 }}>
+        ENTER HOURS
+      </div>
+      <div style={{ display:"flex",gap:8,alignItems:"center",flexWrap:"wrap" }}>
+        <input
+          type="text"
+          inputMode="decimal"
+          placeholder={format==="decimal" ? "e.g. 2.5" : "e.g. 2.30"}
+          value={raw}
+          onChange={e => { setRaw(e.target.value); commit(e.target.value); }}
+          style={{ width:110,background:T.bg,border:`1px solid ${T.teal}`,borderRadius:6,
+            padding:"8px 10px",color:T.text,fontSize:15,fontFamily:"'Roboto Mono',monospace",outline:"none" }}
+        />
+        <div onClick={toggleFormat} style={{ display:"flex",alignItems:"center",gap:6,cursor:"pointer",
+          background:T.bg,border:`1px solid ${T.border}`,borderRadius:20,padding:"5px 10px" }}>
+          <span style={{ fontSize:11,fontFamily:"'Roboto Mono',monospace",
+            color:format==="decimal"?T.teal:T.muted }}>DEC</span>
+          <Toggle on={format==="hhmm"} onChange={toggleFormat} color={T.teal} />
+          <span style={{ fontSize:11,fontFamily:"'Roboto Mono',monospace",
+            color:format==="hhmm"?T.teal:T.muted }}>H.MM</span>
+        </div>
+      </div>
+      {value > 0 && (
+        <div style={{ marginTop:6,fontSize:11,color:T.teal,fontFamily:"'Roboto Mono',monospace" }}>
+          = {decimalDisplay} decimal
+          {format==="hhmm" && raw && ` (${Math.floor(value)}h ${Math.round((value % 1)*60)}m)`}
+        </div>
+      )}
+      <div style={{ marginTop:4,fontSize:10,color:T.muted,fontFamily:"'Roboto Mono',monospace" }}>
+        Does not count toward work days or OT threshold
+      </div>
+    </div>
   );
 }
 
@@ -179,6 +249,9 @@ function DayRow({ day, calc, workDayNum, onUpdate, isOTDay }) {
             {day.active && getDT(day.dutyType).isSick &&
               <span style={{ fontSize:10,color:T.red,fontFamily:"'Roboto Mono',monospace",
                 background:T.redL,padding:"2px 6px",borderRadius:4 }}>SICK</span>}
+            {day.active && getDT(day.dutyType).isFly &&
+              <span style={{ fontSize:10,color:T.teal,fontFamily:"'Roboto Mono',monospace",
+                background:T.tealL,padding:"2px 6px",borderRadius:4 }}>✈ FLY</span>}
           </div>
           {!day.active &&
             <div style={{ fontSize:11,color:T.muted,fontFamily:"'Roboto Mono',monospace",marginTop:2 }}>Off</div>}
@@ -186,7 +259,7 @@ function DayRow({ day, calc, workDayNum, onUpdate, isOTDay }) {
         {day.active && (
           <div style={{ textAlign:"right",flexShrink:0 }}>
             <div style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:22,
-              color:isVac?T.purple:T.acc,lineHeight:1 }}>{fmtH(calc.total)}</div>
+              color:isVac?T.purple:getDT(day.dutyType).isFly?T.teal:T.acc,lineHeight:1 }}>{fmtH(calc.total)}</div>
             <div style={{ fontSize:10,color:T.muted,fontFamily:"'Roboto Mono',monospace" }}>hrs</div>
           </div>
         )}
@@ -199,7 +272,7 @@ function DayRow({ day, calc, workDayNum, onUpdate, isOTDay }) {
               fontFamily:"'Roboto Mono',monospace",outline:"none",marginBottom:10 }}>
             {DUTY_TYPES.map(d=><option key={d.id} value={d.id}>{d.label}</option>)}
           </select>
-          {!isVac && !dt.isSick && (
+          {!isVac && !dt.isSick && !dt.isFly && (
             <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
               {!isCxld && (
                 <Pill label={`15% Override${dt.hasOverride?" (auto)":""}`}
@@ -226,6 +299,14 @@ function DayRow({ day, calc, workDayNum, onUpdate, isOTDay }) {
               Sick day · 6.00 hrs flat · No override or OT
             </div>
           )}
+          {dt.isFly && (
+            <FlyHoursInput
+              value={day.flyHours}
+              format={day.flyFormat}
+              onChangeValue={v => upd("flyHours", v)}
+              onChangeFormat={f => upd("flyFormat", f)}
+            />
+          )}
           {isVac && dt.vacDays===7 && (
             <div style={{ fontSize:11,color:T.purple,fontFamily:"'Roboto Mono',monospace" }}>
               ✓ Next 7 days auto-filled as vacation
@@ -245,11 +326,12 @@ function SummaryTab({ totals, workDays, vacDays, fleet, setFleet, baseDays, base
   const gross   = useHrs * rate;
 
   const rows = [
-    { label:"Base Pay Hours",          value:totals.base,     color:T.text,   code:"INSTRHRS"   },
-    { label:"Overtime (2.5 hrs/day)",  value:totals.ot,       color:T.acc,    code:"INSTR OT"   },
-    { label:"IP Override (15%)",       value:totals.override, color:T.green,  code:"INSTR 15"   },
-    { label:"Holiday Premium",         value:totals.holiday,  color:T.purple, code:"PM HOLIDAY" },
-    { label:"Vacation Hours",          value:totals.vac,      color:T.blue,   code:"VAC"        },
+    { label:"Base Pay Hours",         value:totals.base,     color:T.text,   code:"INSTRHRS"   },
+    { label:"Overtime (2.5 hrs/day)", value:totals.ot,       color:T.acc,    code:"INSTR OT"   },
+    { label:"IP Override (15%)",      value:totals.override, color:T.green,  code:"INSTR 15"   },
+    { label:"Holiday Premium",        value:totals.holiday,  color:T.purple, code:"PM HOLIDAY" },
+    { label:"Vacation Hours",         value:totals.vac,      color:T.blue,   code:"VAC"        },
+    { label:"Fly Through Hours",      value:totals.fly,      color:T.teal,   code:"FLY"        },
   ];
 
   return (
@@ -397,7 +479,7 @@ export default function PayPredictor() {
     let wc=0;
     return days.map(day => {
       const dt     = getDT(day.dutyType);
-      const isWork = day.active && !dt.isVac;
+      const isWork = day.active && !dt.isVac && !dt.isFly;
       if(isWork) wc++;
       const calc = calcDay(day, wc-(isWork?1:0));
       return { day, calc, workDayNum: isWork?wc:null };
@@ -405,17 +487,18 @@ export default function PayPredictor() {
   },[days]);
 
   const totals = useMemo(() => {
-    let base=0,ot=0,override=0,holiday=0,vac=0;
+    let base=0,ot=0,override=0,holiday=0,vac=0,fly=0;
     enriched.forEach(({day,calc}) => {
       if(!day.active) return;
       const dt=getDT(day.dutyType);
       if(dt.isVac) vac+=calc.vac;
+      else if(dt.isFly) fly+=calc.fly;
       else { base+=calc.base; ot+=calc.ot; override+=calc.override; holiday+=calc.holiday; }
     });
-    return {base,ot,override,holiday,vac,grand:base+ot+override+holiday+vac};
+    return {base,ot,override,holiday,vac,fly,grand:base+ot+override+holiday+vac+fly};
   },[enriched]);
 
-  const workDays    = enriched.filter(e=>e.day.active&&!getDT(e.day.dutyType).isVac).length;
+  const workDays    = enriched.filter(e=>e.day.active&&!getDT(e.day.dutyType).isVac&&!getDT(e.day.dutyType).isFly).length;
   const vacDays     = enriched.filter(e=>e.day.active&&getDT(e.day.dutyType).isVac)
     .reduce((s,e)=>s+(getDT(e.day.dutyType).vacDays||1),0);
   const hasEntries  = enriched.some(e=>e.day.active);
@@ -532,7 +615,7 @@ export default function PayPredictor() {
               borderRadius:8,padding:"10px 14px",marginBottom:16,
               display:"flex",justifyContent:"space-between",alignItems:"center" }}>
               <div style={{ fontSize:11,color:hasEntries?T.green:T.acc,fontFamily:"'Roboto Mono',monospace" }}>
-                {workDays>0?`${workDays} logged + ${Math.max(0,baseDays-workDays-vacDays)} base remaining · ${fmtH(displayHrs)} hrs`:`Baseline · ${baseDays} days · ${fmtH(baselineHrs)} hrs`}
+                {workDays>0?`${workDays} logged + ${Math.max(0,baseDays-workDays-vacDays)} remaining · ${fmtH(displayHrs)} hrs`:`Baseline · ${baseDays} days · ${fmtH(baselineHrs)} hrs`}
               </div>
               <div style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:20,
                 color:hasEntries?T.green:T.acc }}>{fmtD(grossPay)}</div>
