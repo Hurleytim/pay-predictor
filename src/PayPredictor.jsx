@@ -64,7 +64,6 @@ function calcDay(day, workDayNum) {
   if (dt.isVac) {
     return { base:0, ot:0, override:0, holiday:0, vac:VAC_HOURS_DAY, total:VAC_HOURS_DAY };
   }
-  // Sick day: flat 6 hours, no override, no OT
   if (dt.isSick) {
     return { base:BASE_HOURS, ot:0, override:0, holiday:0, vac:0, total:BASE_HOURS, isOT:false, overElig:false };
   }
@@ -79,22 +78,20 @@ function calcDay(day, workDayNum) {
 }
 
 // ─── BASELINE ESTIMATE ───────────────────────────────────────────────────────
-// Returns hours for a single base day slot at position `dayNum` (1-indexed)
 function baseSlotHours(dayNum) {
   return dayNum <= OT_THRESHOLD ? BASE_HOURS : BASE_HOURS + OT_HOURS;
 }
 
-// Full baseline with no days logged
 function calcBaseline(baseDays) {
   let h=0;
   for(let i=1;i<=baseDays;i++) h += baseSlotHours(i);
   return h;
 }
 
-// Hybrid: actual logged hours + remaining unlogged base slots
-function calcHybridEstimate(loggedHours, loggedWorkDays, baseDays) {
+function calcHybridEstimate(loggedHours, loggedWorkDays, vacationDays, baseDays) {
+  const usedSlots = loggedWorkDays + vacationDays;
   let remaining = 0;
-  const start = loggedWorkDays + 1;
+  const start = usedSlots + 1;
   for(let i=start; i<=baseDays; i++) remaining += baseSlotHours(i);
   return loggedHours + remaining;
 }
@@ -165,8 +162,6 @@ function DayRow({ day, calc, workDayNum, onUpdate, isOTDay }) {
   return (
     <div style={{ border:`1px solid ${borderCol}`,borderRadius:10,marginBottom:8,
       background:rowBg,overflow:"hidden",transition:"all 0.2s" }}>
-
-      {/* Top row */}
       <div style={{ display:"flex",alignItems:"center",gap:10,padding:"11px 12px" }}>
         <Toggle on={day.active} onChange={() => upd("active",!day.active)} color={isVac?T.purple:isOTDay&&day.active?T.acc:T.green} />
         <div style={{ flex:1,minWidth:0 }}>
@@ -196,8 +191,6 @@ function DayRow({ day, calc, workDayNum, onUpdate, isOTDay }) {
           </div>
         )}
       </div>
-
-      {/* Expanded controls */}
       {day.active && (
         <div style={{ padding:"10px 12px 12px",borderTop:`1px solid ${borderCol}40` }}>
           <select value={day.dutyType} onChange={e=>upd("dutyType",e.target.value)}
@@ -206,7 +199,6 @@ function DayRow({ day, calc, workDayNum, onUpdate, isOTDay }) {
               fontFamily:"'Roboto Mono',monospace",outline:"none",marginBottom:10 }}>
             {DUTY_TYPES.map(d=><option key={d.id} value={d.id}>{d.label}</option>)}
           </select>
-
           {!isVac && !dt.isSick && (
             <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
               {!isCxld && (
@@ -249,7 +241,7 @@ function DayRow({ day, calc, workDayNum, onUpdate, isOTDay }) {
 function SummaryTab({ totals, workDays, vacDays, fleet, setFleet, baseDays, baselineHrs, hasEntries }) {
   const rates   = PAY_RATES[CONTRACT_YEAR];
   const rate    = rates[fleet];
-  const useHrs  = calcHybridEstimate(totals.grand, workDays, baseDays);
+  const useHrs  = calcHybridEstimate(totals.grand, workDays, vacDays, baseDays);
   const gross   = useHrs * rate;
 
   const rows = [
@@ -262,8 +254,6 @@ function SummaryTab({ totals, workDays, vacDays, fleet, setFleet, baseDays, base
 
   return (
     <div style={{ padding:"16px 16px 60px" }}>
-
-      {/* Fleet toggle */}
       <div style={{ marginBottom:16 }}>
         <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,
           fontFamily:"'Roboto Mono',monospace",marginBottom:8 }}>
@@ -285,8 +275,6 @@ function SummaryTab({ totals, workDays, vacDays, fleet, setFleet, baseDays, base
           ))}
         </div>
       </div>
-
-      {/* Work day bar */}
       <div style={{ background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"14px 16px",marginBottom:16 }}>
         <div style={{ display:"flex",justifyContent:"space-between",marginBottom:8 }}>
           <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,fontFamily:"'Roboto Mono',monospace" }}>Work Days</div>
@@ -306,8 +294,6 @@ function SummaryTab({ totals, workDays, vacDays, fleet, setFleet, baseDays, base
         {workDays>OT_THRESHOLD&&<div style={{ marginTop:6,fontSize:11,color:T.acc,fontFamily:"'Roboto Mono',monospace" }}>⚡ {workDays-OT_THRESHOLD} day(s) at overtime rate</div>}
         {vacDays>0&&<div style={{ marginTop:4,fontSize:11,color:T.purple,fontFamily:"'Roboto Mono',monospace" }}>🌴 {vacDays} vacation day(s) — not counted toward OT</div>}
       </div>
-
-      {/* Hour rows */}
       <div style={{ background:T.card,border:`1px solid ${T.border}`,borderRadius:10,overflow:"hidden",marginBottom:16 }}>
         <div style={{ padding:"10px 16px",background:T.panel,borderBottom:`1px solid ${T.border}` }}>
           <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,fontFamily:"'Roboto Mono',monospace" }}>
@@ -331,8 +317,6 @@ function SummaryTab({ totals, workDays, vacDays, fleet, setFleet, baseDays, base
           <div style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:32,color:T.acc }}>{fmtH(useHrs)}</div>
         </div>
       </div>
-
-      {/* Gross pay */}
       <div style={{ background:T.greenL,border:`1px solid ${T.green}40`,borderRadius:10,padding:"18px 16px" }}>
         <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,
           fontFamily:"'Roboto Mono',monospace",marginBottom:6 }}>Estimated Gross Pay</div>
@@ -348,7 +332,6 @@ function SummaryTab({ totals, workDays, vacDays, fleet, setFleet, baseDays, base
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function PayPredictor() {
   const now = new Date();
-
   const STORAGE_KEY = "pay_predictor_v1";
 
   const loadSaved = () => {
@@ -360,7 +343,6 @@ export default function PayPredictor() {
   };
 
   const saved = loadSaved();
-
   const defaultStart = dateStr(new Date(now.getFullYear(),now.getMonth(),1));
   const defaultEnd   = dateStr(new Date(now.getFullYear(),now.getMonth()+1,0));
 
@@ -374,7 +356,6 @@ export default function PayPredictor() {
     return buildGrid(defaultStart, defaultEnd);
   });
 
-  // Auto-save whenever key state changes
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ startDate, endDate, baseDays, fleet, days }));
@@ -396,8 +377,6 @@ export default function PayPredictor() {
       const idx = prev.findIndex(d=>d.date===date);
       if(idx===-1) return prev;
       const updated = [...prev];
-
-      // Vacation week: auto-fill 7 consecutive days
       if(key==="dutyType" && value==="VAC_WEEK") {
         for(let i=0; i<7 && idx+i<updated.length; i++) {
           updated[idx+i] = { ...updated[idx+i], active:true, dutyType:"VAC_DAY",
@@ -406,7 +385,6 @@ export default function PayPredictor() {
         updated[idx] = { ...updated[idx], dutyType:"VAC_WEEK" };
         return updated;
       }
-
       updated[idx] = { ...updated[idx], [key]:value };
       if(key==="active" && !value) {
         updated[idx] = { ...updated[idx], otManual:null, overrideOn:false, holiday:false };
@@ -437,14 +415,13 @@ export default function PayPredictor() {
     return {base,ot,override,holiday,vac,grand:base+ot+override+holiday+vac};
   },[enriched]);
 
-  const workDays   = enriched.filter(e=>e.day.active&&!getDT(e.day.dutyType).isVac).length;
-  const vacDays    = enriched.filter(e=>e.day.active&&getDT(e.day.dutyType).isVac)
+  const workDays    = enriched.filter(e=>e.day.active&&!getDT(e.day.dutyType).isVac).length;
+  const vacDays     = enriched.filter(e=>e.day.active&&getDT(e.day.dutyType).isVac)
     .reduce((s,e)=>s+(getDT(e.day.dutyType).vacDays||1),0);
-  const hasEntries = enriched.some(e=>e.day.active);
+  const hasEntries  = enriched.some(e=>e.day.active);
   const baselineHrs = useMemo(()=>calcBaseline(baseDays),[baseDays]);
   const rate        = PAY_RATES[CONTRACT_YEAR][fleet];
-  // Hybrid: logged actual hours + remaining unlogged base day slots
-  const displayHrs  = calcHybridEstimate(totals.grand, workDays, baseDays);
+  const displayHrs  = calcHybridEstimate(totals.grand, workDays, vacDays, baseDays);
   const grossPay    = displayHrs * rate;
 
   const periodLabel = startDate && endDate
@@ -467,8 +444,6 @@ export default function PayPredictor() {
     <>
       <style>{css}</style>
       <div style={{ minHeight:"100vh",background:T.bg,maxWidth:480,margin:"0 auto" }}>
-
-        {/* HEADER */}
         <div style={{ background:T.panel,borderBottom:`1px solid ${T.border}`,padding:"12px 16px",
           position:"sticky",top:0,zIndex:100 }}>
           <div style={{ display:"flex",alignItems:"center",gap:10 }}>
@@ -489,8 +464,6 @@ export default function PayPredictor() {
             </div>
           </div>
         </div>
-
-        {/* TABS */}
         <div style={{ display:"flex",background:T.panel,borderBottom:`1px solid ${T.border}`,
           position:"sticky",top:62,zIndex:99 }}>
           {[["input","INPUT / LOG"],["summary","SUMMARY"]].map(([v,l])=>(
@@ -503,12 +476,8 @@ export default function PayPredictor() {
             }}>{l}</button>
           ))}
         </div>
-
-        {/* INPUT TAB */}
         {tab==="input" && (
           <div style={{ padding:"16px 16px 60px",animation:"fadeIn 0.2s ease" }}>
-
-            {/* Pay period */}
             <div style={{ background:T.card,border:`1px solid ${T.border}`,borderRadius:10,
               padding:"14px 16px",marginBottom:14 }}>
               <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,
@@ -524,8 +493,6 @@ export default function PayPredictor() {
                 ))}
               </div>
             </div>
-
-            {/* Base days + fleet */}
             <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14 }}>
               <div style={{ background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 14px" }}>
                 <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,
@@ -560,25 +527,20 @@ export default function PayPredictor() {
                 </div>
               </div>
             </div>
-
-            {/* Estimate banner */}
             <div style={{ background:hasEntries?T.greenL:T.accL,
               border:`1px solid ${hasEntries?T.green+"40":T.acc+"40"}`,
               borderRadius:8,padding:"10px 14px",marginBottom:16,
               display:"flex",justifyContent:"space-between",alignItems:"center" }}>
               <div style={{ fontSize:11,color:hasEntries?T.green:T.acc,fontFamily:"'Roboto Mono',monospace" }}>
-                {workDays>0?`${workDays} logged + ${Math.max(0,baseDays-workDays)} base remaining · ${fmtH(displayHrs)} hrs`:`Baseline · ${baseDays} days · ${fmtH(baselineHrs)} hrs`}
+                {workDays>0?`${workDays} logged + ${Math.max(0,baseDays-workDays-vacDays)} base remaining · ${fmtH(displayHrs)} hrs`:`Baseline · ${baseDays} days · ${fmtH(baselineHrs)} hrs`}
               </div>
               <div style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:20,
                 color:hasEntries?T.green:T.acc }}>{fmtD(grossPay)}</div>
             </div>
-
-            {/* Day grid */}
             <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,
               fontFamily:"'Roboto Mono',monospace",marginBottom:10 }}>
               {days.length} Days in Period — Toggle to Log
             </div>
-
             {days.length===0 ? (
               <div style={{ textAlign:"center",padding:48,color:T.muted,
                 fontFamily:"'Roboto Mono',monospace",fontSize:13 }}>
@@ -592,8 +554,6 @@ export default function PayPredictor() {
             )}
           </div>
         )}
-
-        {/* SUMMARY TAB */}
         {tab==="summary" && (
           <div style={{ animation:"fadeIn 0.2s ease" }}>
             <SummaryTab totals={totals} workDays={workDays} vacDays={vacDays}
