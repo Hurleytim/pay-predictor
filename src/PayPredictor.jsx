@@ -12,7 +12,6 @@ const T = {
   teal:"#00D4C8", tealL:"rgba(0,212,200,0.10)",
 };
 
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const BASE_HOURS    = 6.00;
 const OT_HOURS      = 2.50;
 const OT_THRESHOLD  = 15;
@@ -45,7 +44,6 @@ const DUTY_TYPES = [
 const DOW          = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
 const pad2  = n => String(n).padStart(2,"0");
 const fmtH  = h => Number(h).toFixed(2);
 const fmtD  = n => "$" + Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -59,7 +57,6 @@ function formatDisplay(s) {
   return `${DOW[d.getDay()]} ${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}`;
 }
 
-// ─── CALC SINGLE DAY ─────────────────────────────────────────────────────────
 function calcDay(day, workDayNum) {
   if (!day.active) return { base:0, ot:0, override:0, holiday:0, vac:0, total:0 };
   const dt = getDT(day.dutyType);
@@ -83,7 +80,6 @@ function calcDay(day, workDayNum) {
   return { base, ot, override, holiday, vac:0, fly:0, total:base+ot+override+holiday, isOT, overElig };
 }
 
-// ─── BASELINE ESTIMATE ───────────────────────────────────────────────────────
 function baseSlotHours(dayNum) {
   return dayNum <= OT_THRESHOLD ? BASE_HOURS : BASE_HOURS + OT_HOURS;
 }
@@ -100,7 +96,6 @@ function calcHybridEstimate(loggedHours, loggedWorkDays, vacationDays, baseDays)
   return loggedHours + remaining;
 }
 
-// ─── BUILD GRID ───────────────────────────────────────────────────────────────
 function buildGrid(s, e) {
   if (!s||!e) return [];
   const start=parseDate(s), end=parseDate(e);
@@ -114,7 +109,6 @@ function buildGrid(s, e) {
   return days;
 }
 
-// ─── TOGGLE ───────────────────────────────────────────────────────────────────
 function Toggle({ on, onChange, color=T.acc }) {
   return (
     <div onClick={onChange} style={{ width:44,height:26,borderRadius:13,
@@ -127,7 +121,6 @@ function Toggle({ on, onChange, color=T.acc }) {
   );
 }
 
-// ─── PILL ─────────────────────────────────────────────────────────────────────
 function Pill({ label, active, onClick, color }) {
   return (
     <button onClick={onClick} style={{ padding:"6px 12px",borderRadius:20,
@@ -140,7 +133,6 @@ function Pill({ label, active, onClick, color }) {
   );
 }
 
-// ─── FLY HOURS INPUT ─────────────────────────────────────────────────────────
 function parseHours(raw, format) {
   const n = parseFloat(raw);
   if (isNaN(n) || n < 0) return 0;
@@ -154,48 +146,32 @@ function parseHours(raw, format) {
 
 function FlyHoursInput({ value, format, onChangeValue, onChangeFormat }) {
   const [raw, setRaw] = useState(value > 0 ? String(value) : "");
-
-  const commit = v => {
-    const parsed = parseHours(v, format);
-    onChangeValue(parsed);
-  };
-
+  const commit = v => { onChangeValue(parseHours(v, format)); };
   const toggleFormat = () => {
     const newFmt = format === "decimal" ? "hhmm" : "decimal";
     onChangeFormat(newFmt);
-    const parsed = parseHours(raw, newFmt);
-    onChangeValue(parsed);
+    onChangeValue(parseHours(raw, newFmt));
   };
-
-  const decimalDisplay = value > 0 ? fmtH(value) + " hrs" : null;
-
   return (
     <div style={{ marginTop:4 }}>
-      <div style={{ fontSize:10,color:T.teal,fontFamily:"'Roboto Mono',monospace",letterSpacing:1,marginBottom:6 }}>
-        ENTER HOURS
-      </div>
+      <div style={{ fontSize:10,color:T.teal,fontFamily:"'Roboto Mono',monospace",letterSpacing:1,marginBottom:6 }}>ENTER HOURS</div>
       <div style={{ display:"flex",gap:8,alignItems:"center",flexWrap:"wrap" }}>
-        <input
-          type="text"
-          inputMode="decimal"
+        <input type="text" inputMode="decimal"
           placeholder={format==="decimal" ? "e.g. 2.5" : "e.g. 2.30"}
           value={raw}
           onChange={e => { setRaw(e.target.value); commit(e.target.value); }}
           style={{ width:110,background:T.bg,border:`1px solid ${T.teal}`,borderRadius:6,
-            padding:"8px 10px",color:T.text,fontSize:15,fontFamily:"'Roboto Mono',monospace",outline:"none" }}
-        />
+            padding:"8px 10px",color:T.text,fontSize:15,fontFamily:"'Roboto Mono',monospace",outline:"none" }} />
         <div onClick={toggleFormat} style={{ display:"flex",alignItems:"center",gap:6,cursor:"pointer",
           background:T.bg,border:`1px solid ${T.border}`,borderRadius:20,padding:"5px 10px" }}>
-          <span style={{ fontSize:11,fontFamily:"'Roboto Mono',monospace",
-            color:format==="decimal"?T.teal:T.muted }}>DEC</span>
+          <span style={{ fontSize:11,fontFamily:"'Roboto Mono',monospace",color:format==="decimal"?T.teal:T.muted }}>DEC</span>
           <Toggle on={format==="hhmm"} onChange={toggleFormat} color={T.teal} />
-          <span style={{ fontSize:11,fontFamily:"'Roboto Mono',monospace",
-            color:format==="hhmm"?T.teal:T.muted }}>H.MM</span>
+          <span style={{ fontSize:11,fontFamily:"'Roboto Mono',monospace",color:format==="hhmm"?T.teal:T.muted }}>H.MM</span>
         </div>
       </div>
       {value > 0 && (
         <div style={{ marginTop:6,fontSize:11,color:T.teal,fontFamily:"'Roboto Mono',monospace" }}>
-          = {decimalDisplay} decimal
+          = {fmtH(value)} hrs decimal
           {format==="hhmm" && raw && ` (${Math.floor(value)}h ${Math.round((value % 1)*60)}m)`}
         </div>
       )}
@@ -206,7 +182,6 @@ function FlyHoursInput({ value, format, onChangeValue, onChangeFormat }) {
   );
 }
 
-// ─── DAY ROW ─────────────────────────────────────────────────────────────────
 function DayRow({ day, calc, workDayNum, onUpdate, isOTDay }) {
   const dt      = getDT(day.dutyType);
   const isVac   = dt.isVac;
@@ -215,51 +190,31 @@ function DayRow({ day, calc, workDayNum, onUpdate, isOTDay }) {
   const autoOT  = workDayNum > OT_THRESHOLD;
   const showOT  = day.otManual !== null ? day.otManual : autoOT;
 
-  const borderCol = !day.active ? T.border
-    : isVac  ? T.purple
-    : isCxld ? T.red
-    : isOTDay? T.acc
-    : T.green;
-
-  const rowBg = !day.active ? "transparent"
-    : isVac  ? T.purpleL
-    : isCxld ? T.redL
-    : isOTDay? T.accL
-    : T.greenL;
-
+  const borderCol = !day.active ? T.border : isVac ? T.purple : isCxld ? T.red : isOTDay ? T.acc : T.green;
+  const rowBg     = !day.active ? "transparent" : isVac ? T.purpleL : isCxld ? T.redL : isOTDay ? T.accL : T.greenL;
   const upd = (k,v) => onUpdate(day.date,k,v);
 
   return (
-    <div style={{ border:`1px solid ${borderCol}`,borderRadius:10,marginBottom:8,
-      background:rowBg,overflow:"hidden",transition:"all 0.2s" }}>
+    <div style={{ border:`1px solid ${borderCol}`,borderRadius:10,marginBottom:8,background:rowBg,overflow:"hidden",transition:"all 0.2s" }}>
       <div style={{ display:"flex",alignItems:"center",gap:10,padding:"11px 12px" }}>
         <Toggle on={day.active} onChange={() => upd("active",!day.active)} color={isVac?T.purple:isOTDay&&day.active?T.acc:T.green} />
         <div style={{ flex:1,minWidth:0 }}>
           <div style={{ display:"flex",alignItems:"center",gap:6,flexWrap:"wrap" }}>
-            <span style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,
-              color:day.active?T.text:T.muted,lineHeight:1 }}>{display}</span>
+            <span style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,color:day.active?T.text:T.muted,lineHeight:1 }}>{display}</span>
             {day.active && workDayNum && !isVac &&
-              <span style={{ fontSize:10,color:isOTDay?T.acc:T.mutedL,fontFamily:"'Roboto Mono',monospace",
-                background:isOTDay?T.accL:T.border,padding:"2px 6px",borderRadius:4 }}>
+              <span style={{ fontSize:10,color:isOTDay?T.acc:T.mutedL,fontFamily:"'Roboto Mono',monospace",background:isOTDay?T.accL:T.border,padding:"2px 6px",borderRadius:4 }}>
                 Day {workDayNum}{isOTDay?" ⚡OT":""}
               </span>}
-            {day.active && isVac &&
-              <span style={{ fontSize:10,color:T.purple,fontFamily:"'Roboto Mono',monospace",
-                background:T.purpleL,padding:"2px 6px",borderRadius:4 }}>🌴 VAC</span>}
-            {day.active && getDT(day.dutyType).isSick &&
-              <span style={{ fontSize:10,color:T.red,fontFamily:"'Roboto Mono',monospace",
-                background:T.redL,padding:"2px 6px",borderRadius:4 }}>SICK</span>}
-            {day.active && getDT(day.dutyType).isFly &&
-              <span style={{ fontSize:10,color:T.teal,fontFamily:"'Roboto Mono',monospace",
-                background:T.tealL,padding:"2px 6px",borderRadius:4 }}>✈ FLY</span>}
+            {day.active && isVac && <span style={{ fontSize:10,color:T.purple,fontFamily:"'Roboto Mono',monospace",background:T.purpleL,padding:"2px 6px",borderRadius:4 }}>🌴 VAC</span>}
+            {day.active && dt.isSick && <span style={{ fontSize:10,color:T.red,fontFamily:"'Roboto Mono',monospace",background:T.redL,padding:"2px 6px",borderRadius:4 }}>SICK</span>}
+            {day.active && dt.isFly  && <span style={{ fontSize:10,color:T.teal,fontFamily:"'Roboto Mono',monospace",background:T.tealL,padding:"2px 6px",borderRadius:4 }}>✈ FLY</span>}
           </div>
-          {!day.active &&
-            <div style={{ fontSize:11,color:T.muted,fontFamily:"'Roboto Mono',monospace",marginTop:2 }}>Off</div>}
+          {!day.active && <div style={{ fontSize:11,color:T.muted,fontFamily:"'Roboto Mono',monospace",marginTop:2 }}>Off</div>}
         </div>
         {day.active && (
           <div style={{ textAlign:"right",flexShrink:0 }}>
             <div style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:22,
-              color:isVac?T.purple:getDT(day.dutyType).isFly?T.teal:T.acc,lineHeight:1 }}>{fmtH(calc.total)}</div>
+              color:isVac?T.purple:dt.isFly?T.teal:T.acc,lineHeight:1 }}>{fmtH(calc.total)}</div>
             <div style={{ fontSize:10,color:T.muted,fontFamily:"'Roboto Mono',monospace" }}>hrs</div>
           </div>
         )}
@@ -268,62 +223,31 @@ function DayRow({ day, calc, workDayNum, onUpdate, isOTDay }) {
         <div style={{ padding:"10px 12px 12px",borderTop:`1px solid ${borderCol}40` }}>
           <select value={day.dutyType} onChange={e=>upd("dutyType",e.target.value)}
             style={{ width:"100%",background:T.bg,border:`1px solid ${T.border}`,borderRadius:6,
-              padding:"9px 12px",color:T.text,fontSize:14,
-              fontFamily:"'Roboto Mono',monospace",outline:"none",marginBottom:10 }}>
+              padding:"9px 12px",color:T.text,fontSize:14,fontFamily:"'Roboto Mono',monospace",outline:"none",marginBottom:10 }}>
             {DUTY_TYPES.map(d=><option key={d.id} value={d.id}>{d.label}</option>)}
           </select>
           {!isVac && !dt.isSick && !dt.isFly && (
             <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
-              {!isCxld && (
-                <Pill label={`15% Override${dt.hasOverride?" (auto)":""}`}
-                  active={dt.hasOverride||day.overrideOn}
-                  onClick={()=>!dt.hasOverride&&upd("overrideOn",!day.overrideOn)}
-                  color={T.green} />
-              )}
-              {!isCxld && (
-                <Pill label={`OT +2.5${autoOT&&day.otManual===null?" (auto)":""}`}
-                  active={showOT}
-                  onClick={()=>upd("otManual",!showOT)}
-                  color={T.acc} />
-              )}
-              <Pill label="Holiday +5.25" active={day.holiday}
-                onClick={()=>upd("holiday",!day.holiday)} color={T.purple} />
-              {isCxld &&
-                <span style={{ fontSize:11,color:T.red,fontFamily:"'Roboto Mono',monospace",alignSelf:"center" }}>
-                  Pay protected · No override
-                </span>}
+              {!isCxld && <Pill label={`15% Override${dt.hasOverride?" (auto)":""}`} active={dt.hasOverride||day.overrideOn} onClick={()=>!dt.hasOverride&&upd("overrideOn",!day.overrideOn)} color={T.green} />}
+              {!isCxld && <Pill label={`OT +2.5${autoOT&&day.otManual===null?" (auto)":""}`} active={showOT} onClick={()=>upd("otManual",!showOT)} color={T.acc} />}
+              <Pill label="Holiday +5.25" active={day.holiday} onClick={()=>upd("holiday",!day.holiday)} color={T.purple} />
+              {isCxld && <span style={{ fontSize:11,color:T.red,fontFamily:"'Roboto Mono',monospace",alignSelf:"center" }}>Pay protected · No override</span>}
             </div>
           )}
-          {!isVac && dt.isSick && (
-            <div style={{ fontSize:11,color:T.red,fontFamily:"'Roboto Mono',monospace" }}>
-              Sick day · 6.00 hrs flat · No override or OT
-            </div>
-          )}
-          {dt.isFly && (
-            <FlyHoursInput
-              value={day.flyHours}
-              format={day.flyFormat}
-              onChangeValue={v => upd("flyHours", v)}
-              onChangeFormat={f => upd("flyFormat", f)}
-            />
-          )}
-          {isVac && dt.vacDays===7 && (
-            <div style={{ fontSize:11,color:T.purple,fontFamily:"'Roboto Mono',monospace" }}>
-              ✓ Next 7 days auto-filled as vacation
-            </div>
-          )}
+          {!isVac && dt.isSick && <div style={{ fontSize:11,color:T.red,fontFamily:"'Roboto Mono',monospace" }}>Sick day · 6.00 hrs flat · No override or OT</div>}
+          {dt.isFly && <FlyHoursInput value={day.flyHours} format={day.flyFormat} onChangeValue={v=>upd("flyHours",v)} onChangeFormat={f=>upd("flyFormat",f)} />}
+          {isVac && dt.vacDays===7 && <div style={{ fontSize:11,color:T.purple,fontFamily:"'Roboto Mono',monospace" }}>✓ Next 7 days auto-filled as vacation</div>}
         </div>
       )}
     </div>
   );
 }
 
-// ─── SUMMARY TAB ─────────────────────────────────────────────────────────────
 function SummaryTab({ totals, workDays, vacDays, fleet, setFleet, baseDays, baselineHrs, hasEntries }) {
-  const rates   = PAY_RATES[CONTRACT_YEAR];
-  const rate    = rates[fleet];
-  const useHrs  = calcHybridEstimate(totals.grand, workDays, vacDays, baseDays);
-  const gross   = useHrs * rate;
+  const rates  = PAY_RATES[CONTRACT_YEAR];
+  const rate   = rates[fleet];
+  const useHrs = calcHybridEstimate(totals.grand, workDays, vacDays, baseDays);
+  const gross  = useHrs * rate;
 
   const rows = [
     { label:"Base Pay Hours",         value:totals.base,     color:T.text,   code:"INSTRHRS"   },
@@ -337,22 +261,12 @@ function SummaryTab({ totals, workDays, vacDays, fleet, setFleet, baseDays, base
   return (
     <div style={{ padding:"16px 16px 60px" }}>
       <div style={{ marginBottom:16 }}>
-        <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,
-          fontFamily:"'Roboto Mono',monospace",marginBottom:8 }}>
-          Pay Scale — {CONTRACT_YEAR} Contract
-        </div>
+        <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,fontFamily:"'Roboto Mono',monospace",marginBottom:8 }}>Pay Scale — {CONTRACT_YEAR} Contract</div>
         <div style={{ display:"flex",background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:4,gap:4 }}>
           {[{id:"narrow",label:"Narrow Body",rate:rates.narrow},{id:"wide",label:"Wide Body",rate:rates.wide}].map(f=>(
-            <button key={f.id} onClick={()=>setFleet(f.id)} style={{
-              flex:1,padding:"10px 8px",borderRadius:6,border:"none",cursor:"pointer",
-              background:fleet===f.id?T.acc:"transparent",
-              color:fleet===f.id?"#000":T.muted,
-              fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,letterSpacing:1,
-              transition:"all 0.2s",
-            }}>
+            <button key={f.id} onClick={()=>setFleet(f.id)} style={{ flex:1,padding:"10px 8px",borderRadius:6,border:"none",cursor:"pointer",background:fleet===f.id?T.acc:"transparent",color:fleet===f.id?"#000":T.muted,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,letterSpacing:1,transition:"all 0.2s" }}>
               <div>{f.label.toUpperCase()}</div>
-              <div style={{ fontSize:11,fontFamily:"'Roboto Mono',monospace",fontWeight:400,
-                color:fleet===f.id?"#00000088":T.muted,marginTop:2 }}>${f.rate.toFixed(2)}/hr</div>
+              <div style={{ fontSize:11,fontFamily:"'Roboto Mono',monospace",fontWeight:400,color:fleet===f.id?"#00000088":T.muted,marginTop:2 }}>${f.rate.toFixed(2)}/hr</div>
             </button>
           ))}
         </div>
@@ -360,67 +274,54 @@ function SummaryTab({ totals, workDays, vacDays, fleet, setFleet, baseDays, base
       <div style={{ background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"14px 16px",marginBottom:16 }}>
         <div style={{ display:"flex",justifyContent:"space-between",marginBottom:8 }}>
           <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,fontFamily:"'Roboto Mono',monospace" }}>Work Days</div>
-          <span style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:22,
-            color:workDays>OT_THRESHOLD?T.acc:T.text }}>
+          <span style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:22,color:workDays>OT_THRESHOLD?T.acc:T.text }}>
             {workDays} <span style={{ fontSize:13,color:T.muted }}>/ {baseDays} base</span>
           </span>
         </div>
         <div style={{ height:6,background:T.border,borderRadius:3,overflow:"hidden" }}>
-          <div style={{ width:`${Math.min((workDays/18)*100,100)}%`,height:"100%",borderRadius:3,
-            background:workDays>OT_THRESHOLD?T.acc:T.green,transition:"width 0.4s ease" }} />
+          <div style={{ width:`${Math.min((workDays/18)*100,100)}%`,height:"100%",borderRadius:3,background:workDays>OT_THRESHOLD?T.acc:T.green,transition:"width 0.4s ease" }} />
         </div>
-        <div style={{ display:"flex",justifyContent:"space-between",marginTop:5,fontSize:10,
-          color:T.muted,fontFamily:"'Roboto Mono',monospace" }}>
+        <div style={{ display:"flex",justifyContent:"space-between",marginTop:5,fontSize:10,color:T.muted,fontFamily:"'Roboto Mono',monospace" }}>
           <span>0</span><span style={{ color:workDays>=15?T.acc:T.muted }}>15 ← OT</span><span>18</span>
         </div>
-        {workDays>OT_THRESHOLD&&<div style={{ marginTop:6,fontSize:11,color:T.acc,fontFamily:"'Roboto Mono',monospace" }}>⚡ {workDays-OT_THRESHOLD} day(s) at overtime rate</div>}
-        {vacDays>0&&<div style={{ marginTop:4,fontSize:11,color:T.purple,fontFamily:"'Roboto Mono',monospace" }}>🌴 {vacDays} vacation day(s) — not counted toward OT</div>}
+        {workDays>OT_THRESHOLD && <div style={{ marginTop:6,fontSize:11,color:T.acc,fontFamily:"'Roboto Mono',monospace" }}>⚡ {workDays-OT_THRESHOLD} day(s) at overtime rate</div>}
+        {vacDays>0 && <div style={{ marginTop:4,fontSize:11,color:T.purple,fontFamily:"'Roboto Mono',monospace" }}>🌴 {vacDays} vacation day(s) — not counted toward OT</div>}
       </div>
       <div style={{ background:T.card,border:`1px solid ${T.border}`,borderRadius:10,overflow:"hidden",marginBottom:16 }}>
         <div style={{ padding:"10px 16px",background:T.panel,borderBottom:`1px solid ${T.border}` }}>
           <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,fontFamily:"'Roboto Mono',monospace" }}>
-            Hour Breakdown {!hasEntries&&<span style={{ color:T.acc }}>(baseline)</span>}
+            Hour Breakdown {!hasEntries && <span style={{ color:T.acc }}>(baseline)</span>}
           </div>
         </div>
         {rows.map(r=>(
-          <div key={r.label} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",
-            padding:"12px 16px",borderBottom:`1px solid ${T.border}` }}>
+          <div key={r.label} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",borderBottom:`1px solid ${T.border}` }}>
             <div>
               <div style={{ fontSize:13,color:T.mutedL,fontFamily:"'Roboto Mono',monospace" }}>{r.label}</div>
               <div style={{ fontSize:10,color:T.muted,fontFamily:"'Roboto Mono',monospace",letterSpacing:1 }}>{r.code}</div>
             </div>
-            <div style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:22,
-              color:r.value>0?r.color:T.muted }}>{fmtH(r.value)}</div>
+            <div style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:22,color:r.value>0?r.color:T.muted }}>{fmtH(r.value)}</div>
           </div>
         ))}
-        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",
-          padding:"14px 16px",background:T.accL }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 16px",background:T.accL }}>
           <div style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,color:T.acc }}>TOTAL HOURS</div>
           <div style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:32,color:T.acc }}>{fmtH(useHrs)}</div>
         </div>
       </div>
       <div style={{ background:T.greenL,border:`1px solid ${T.green}40`,borderRadius:10,padding:"18px 16px" }}>
-        <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,
-          fontFamily:"'Roboto Mono',monospace",marginBottom:6 }}>Estimated Gross Pay</div>
+        <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,fontFamily:"'Roboto Mono',monospace",marginBottom:6 }}>Estimated Gross Pay</div>
         <div style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:44,color:T.green }}>{fmtD(gross)}</div>
-        <div style={{ fontSize:11,color:T.muted,fontFamily:"'Roboto Mono',monospace",marginTop:4 }}>
-          {fmtH(useHrs)} hrs × ${rate.toFixed(2)}/hr
-        </div>
+        <div style={{ fontSize:11,color:T.muted,fontFamily:"'Roboto Mono',monospace",marginTop:4 }}>{fmtH(useHrs)} hrs × ${rate.toFixed(2)}/hr</div>
       </div>
     </div>
   );
 }
 
-// ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function PayPredictor() {
   const now = new Date();
   const STORAGE_KEY = "pay_predictor_v1";
 
   const loadSaved = () => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch(e) {}
+    try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) return JSON.parse(raw); } catch(e) {}
     return null;
   };
 
@@ -433,21 +334,15 @@ export default function PayPredictor() {
   const [baseDays,  setBaseDays]  = useState(saved?.baseDays  || 15);
   const [fleet,     setFleet]     = useState(saved?.fleet     || "narrow");
   const [tab,       setTab]       = useState("input");
-  const [days,      setDays]      = useState(() => {
-    if (saved?.days?.length) return saved.days;
-    return buildGrid(defaultStart, defaultEnd);
-  });
+  const [days,      setDays]      = useState(() => saved?.days?.length ? saved.days : buildGrid(defaultStart, defaultEnd));
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ startDate, endDate, baseDays, fleet, days }));
-    } catch(e) {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ startDate, endDate, baseDays, fleet, days })); } catch(e) {}
   }, [startDate, endDate, baseDays, fleet, days]);
 
   const applyRange = useCallback((s,e) => {
     if(!s||!e) return;
-    const sd=parseDate(s), ed=parseDate(e);
-    if(sd>ed) return;
+    if(parseDate(s)>parseDate(e)) return;
     setDays(buildGrid(s,e));
   },[]);
 
@@ -461,16 +356,13 @@ export default function PayPredictor() {
       const updated = [...prev];
       if(key==="dutyType" && value==="VAC_WEEK") {
         for(let i=0; i<7 && idx+i<updated.length; i++) {
-          updated[idx+i] = { ...updated[idx+i], active:true, dutyType:"VAC_DAY",
-            otManual:null, overrideOn:false, holiday:false };
+          updated[idx+i] = { ...updated[idx+i], active:true, dutyType:"VAC_DAY", otManual:null, overrideOn:false, holiday:false };
         }
         updated[idx] = { ...updated[idx], dutyType:"VAC_WEEK" };
         return updated;
       }
       updated[idx] = { ...updated[idx], [key]:value };
-      if(key==="active" && !value) {
-        updated[idx] = { ...updated[idx], otManual:null, overrideOn:false, holiday:false };
-      }
+      if(key==="active" && !value) updated[idx] = { ...updated[idx], otManual:null, overrideOn:false, holiday:false };
       return updated;
     });
   },[]);
@@ -481,7 +373,7 @@ export default function PayPredictor() {
       const dt     = getDT(day.dutyType);
       const isWork = day.active && !dt.isVac && !dt.isFly;
       if(isWork) wc++;
-      const calc = calcDay(day, wc-(isWork?1:0));
+      const calc = calcDay(day, wc);  // ← THE FIX: pass wc not wc-1
       return { day, calc, workDayNum: isWork?wc:null };
     });
   },[days]);
@@ -499,17 +391,13 @@ export default function PayPredictor() {
   },[enriched]);
 
   const workDays    = enriched.filter(e=>e.day.active&&!getDT(e.day.dutyType).isVac&&!getDT(e.day.dutyType).isFly).length;
-  const vacDays     = enriched.filter(e=>e.day.active&&getDT(e.day.dutyType).isVac)
-    .reduce((s,e)=>s+(getDT(e.day.dutyType).vacDays||1),0);
+  const vacDays     = enriched.filter(e=>e.day.active&&getDT(e.day.dutyType).isVac).reduce((s,e)=>s+(getDT(e.day.dutyType).vacDays||1),0);
   const hasEntries  = enriched.some(e=>e.day.active);
   const baselineHrs = useMemo(()=>calcBaseline(baseDays),[baseDays]);
   const rate        = PAY_RATES[CONTRACT_YEAR][fleet];
   const displayHrs  = calcHybridEstimate(totals.grand, workDays, vacDays, baseDays);
   const grossPay    = displayHrs * rate;
-
-  const periodLabel = startDate && endDate
-    ? `${formatDisplay(startDate)} – ${formatDisplay(endDate)}`
-    : "Set pay period";
+  const periodLabel = startDate && endDate ? `${formatDisplay(startDate)} – ${formatDisplay(endDate)}` : "Set pay period";
 
   const css = `
     @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Roboto+Mono:wght@300;400;500&display=swap');
@@ -527,121 +415,76 @@ export default function PayPredictor() {
     <>
       <style>{css}</style>
       <div style={{ minHeight:"100vh",background:T.bg,maxWidth:480,margin:"0 auto" }}>
-        <div style={{ background:T.panel,borderBottom:`1px solid ${T.border}`,padding:"12px 16px",
-          position:"sticky",top:0,zIndex:100 }}>
+        <div style={{ background:T.panel,borderBottom:`1px solid ${T.border}`,padding:"12px 16px",position:"sticky",top:0,zIndex:100 }}>
           <div style={{ display:"flex",alignItems:"center",gap:10 }}>
-            <div style={{ width:32,height:32,background:T.acc,borderRadius:7,display:"flex",
-              alignItems:"center",justifyContent:"center",fontFamily:"'Barlow Condensed',sans-serif",
-              fontWeight:800,fontSize:16,color:"#000",flexShrink:0 }}>✈</div>
+            <div style={{ width:32,height:32,background:T.acc,borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:16,color:"#000",flexShrink:0 }}>✈</div>
             <div style={{ flex:1,minWidth:0 }}>
-              <div style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,
-                color:T.text,letterSpacing:2,lineHeight:1 }}>PAY PREDICTOR</div>
-              <div style={{ fontSize:10,color:T.muted,letterSpacing:1,fontFamily:"'Roboto Mono',monospace",
-                overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{periodLabel}</div>
+              <div style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,color:T.text,letterSpacing:2,lineHeight:1 }}>PAY PREDICTOR</div>
+              <div style={{ fontSize:10,color:T.muted,letterSpacing:1,fontFamily:"'Roboto Mono',monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{periodLabel}</div>
             </div>
             <div style={{ textAlign:"right",flexShrink:0 }}>
               <div style={{ fontSize:9,color:T.muted,fontFamily:"'Roboto Mono',monospace",letterSpacing:1 }}>EST. GROSS</div>
-              <div style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:24,color:T.green,lineHeight:1 }}>
-                {fmtD(grossPay)}
-              </div>
+              <div style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:24,color:T.green,lineHeight:1 }}>{fmtD(grossPay)}</div>
             </div>
           </div>
         </div>
-        <div style={{ display:"flex",background:T.panel,borderBottom:`1px solid ${T.border}`,
-          position:"sticky",top:62,zIndex:99 }}>
+        <div style={{ display:"flex",background:T.panel,borderBottom:`1px solid ${T.border}`,position:"sticky",top:62,zIndex:99 }}>
           {[["input","INPUT / LOG"],["summary","SUMMARY"]].map(([v,l])=>(
-            <button key={v} onClick={()=>setTab(v)} style={{
-              flex:1,padding:"13px 8px",border:"none",cursor:"pointer",
-              fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,letterSpacing:1.5,
-              background:"transparent",transition:"all 0.2s",
-              color:tab===v?T.acc:T.muted,
-              borderBottom:tab===v?`2px solid ${T.acc}`:"2px solid transparent",
-            }}>{l}</button>
+            <button key={v} onClick={()=>setTab(v)} style={{ flex:1,padding:"13px 8px",border:"none",cursor:"pointer",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,letterSpacing:1.5,background:"transparent",transition:"all 0.2s",color:tab===v?T.acc:T.muted,borderBottom:tab===v?`2px solid ${T.acc}`:"2px solid transparent" }}>{l}</button>
           ))}
         </div>
         {tab==="input" && (
           <div style={{ padding:"16px 16px 60px",animation:"fadeIn 0.2s ease" }}>
-            <div style={{ background:T.card,border:`1px solid ${T.border}`,borderRadius:10,
-              padding:"14px 16px",marginBottom:14 }}>
-              <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,
-                fontFamily:"'Roboto Mono',monospace",marginBottom:10 }}>Pay Period</div>
+            <div style={{ background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"14px 16px",marginBottom:14 }}>
+              <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,fontFamily:"'Roboto Mono',monospace",marginBottom:10 }}>Pay Period</div>
               <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
                 {[["START DATE",startDate,handleStart],["END DATE",endDate,handleEnd]].map(([lbl,val,fn])=>(
                   <div key={lbl}>
                     <div style={{ fontSize:10,color:T.muted,fontFamily:"'Roboto Mono',monospace",marginBottom:4 }}>{lbl}</div>
-                    <input type="date" value={val} onChange={e=>fn(e.target.value)}
-                      style={{ width:"100%",background:T.bg,border:`1px solid ${T.border}`,borderRadius:6,
-                        padding:"9px 10px",color:T.text,fontSize:13,fontFamily:"'Roboto Mono',monospace" }} />
+                    <input type="date" value={val} onChange={e=>fn(e.target.value)} style={{ width:"100%",background:T.bg,border:`1px solid ${T.border}`,borderRadius:6,padding:"9px 10px",color:T.text,fontSize:13,fontFamily:"'Roboto Mono',monospace" }} />
                   </div>
                 ))}
               </div>
             </div>
             <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14 }}>
               <div style={{ background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 14px" }}>
-                <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,
-                  fontFamily:"'Roboto Mono',monospace",marginBottom:8 }}>Base Days Assigned</div>
-                <select value={baseDays} onChange={e=>setBaseDays(Number(e.target.value))}
-                  style={{ width:"100%",background:T.bg,border:`1px solid ${T.border}`,borderRadius:6,
-                    padding:"9px 10px",color:T.acc,fontSize:17,fontFamily:"'Barlow Condensed',sans-serif",
-                    fontWeight:700,outline:"none" }}>
+                <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,fontFamily:"'Roboto Mono',monospace",marginBottom:8 }}>Base Days Assigned</div>
+                <select value={baseDays} onChange={e=>setBaseDays(Number(e.target.value))} style={{ width:"100%",background:T.bg,border:`1px solid ${T.border}`,borderRadius:6,padding:"9px 10px",color:T.acc,fontSize:17,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,outline:"none" }}>
                   {[14,15,16,17,18].map(n=><option key={n} value={n}>{n} days</option>)}
                 </select>
-                <div style={{ fontSize:10,color:T.muted,fontFamily:"'Roboto Mono',monospace",marginTop:6 }}>
-                  Baseline: {fmtH(baselineHrs)} hrs
-                </div>
+                <div style={{ fontSize:10,color:T.muted,fontFamily:"'Roboto Mono',monospace",marginTop:6 }}>Baseline: {fmtH(baselineHrs)} hrs</div>
               </div>
               <div style={{ background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 14px" }}>
-                <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,
-                  fontFamily:"'Roboto Mono',monospace",marginBottom:8 }}>Pay Scale</div>
+                <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,fontFamily:"'Roboto Mono',monospace",marginBottom:8 }}>Pay Scale</div>
                 <div style={{ display:"flex",gap:6,marginBottom:6 }}>
                   {[{id:"narrow",label:"NB"},{id:"wide",label:"WB"}].map(f=>(
-                    <button key={f.id} onClick={()=>setFleet(f.id)} style={{
-                      flex:1,padding:"8px 4px",borderRadius:6,
-                      border:`1px solid ${fleet===f.id?T.acc:T.border}`,
-                      background:fleet===f.id?T.accL:"transparent",
-                      color:fleet===f.id?T.acc:T.muted,
-                      fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,
-                      cursor:"pointer",transition:"all 0.15s",
-                    }}>{f.label}</button>
+                    <button key={f.id} onClick={()=>setFleet(f.id)} style={{ flex:1,padding:"8px 4px",borderRadius:6,border:`1px solid ${fleet===f.id?T.acc:T.border}`,background:fleet===f.id?T.accL:"transparent",color:fleet===f.id?T.acc:T.muted,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,cursor:"pointer",transition:"all 0.15s" }}>{f.label}</button>
                   ))}
                 </div>
-                <div style={{ fontSize:10,color:T.muted,fontFamily:"'Roboto Mono',monospace" }}>
-                  ${rate.toFixed(2)}/hr · {CONTRACT_YEAR}
-                </div>
+                <div style={{ fontSize:10,color:T.muted,fontFamily:"'Roboto Mono',monospace" }}>${rate.toFixed(2)}/hr · {CONTRACT_YEAR}</div>
               </div>
             </div>
-            <div style={{ background:hasEntries?T.greenL:T.accL,
-              border:`1px solid ${hasEntries?T.green+"40":T.acc+"40"}`,
-              borderRadius:8,padding:"10px 14px",marginBottom:16,
-              display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+            <div style={{ background:hasEntries?T.greenL:T.accL,border:`1px solid ${hasEntries?T.green+"40":T.acc+"40"}`,borderRadius:8,padding:"10px 14px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center" }}>
               <div style={{ fontSize:11,color:hasEntries?T.green:T.acc,fontFamily:"'Roboto Mono',monospace" }}>
                 {workDays>0?`${workDays} logged + ${Math.max(0,baseDays-workDays-vacDays)} remaining · ${fmtH(displayHrs)} hrs`:`Baseline · ${baseDays} days · ${fmtH(baselineHrs)} hrs`}
               </div>
-              <div style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:20,
-                color:hasEntries?T.green:T.acc }}>{fmtD(grossPay)}</div>
+              <div style={{ fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:20,color:hasEntries?T.green:T.acc }}>{fmtD(grossPay)}</div>
             </div>
-            <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,
-              fontFamily:"'Roboto Mono',monospace",marginBottom:10 }}>
+            <div style={{ fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,fontFamily:"'Roboto Mono',monospace",marginBottom:10 }}>
               {days.length} Days in Period — Toggle to Log
             </div>
             {days.length===0 ? (
-              <div style={{ textAlign:"center",padding:48,color:T.muted,
-                fontFamily:"'Roboto Mono',monospace",fontSize:13 }}>
-                Set a valid pay period above to load the day grid
-              </div>
+              <div style={{ textAlign:"center",padding:48,color:T.muted,fontFamily:"'Roboto Mono',monospace",fontSize:13 }}>Set a valid pay period above to load the day grid</div>
             ) : (
               enriched.map(({day,calc,workDayNum})=>(
-                <DayRow key={day.date} day={day} calc={calc} workDayNum={workDayNum}
-                  onUpdate={updateDay} isOTDay={workDayNum>OT_THRESHOLD} />
+                <DayRow key={day.date} day={day} calc={calc} workDayNum={workDayNum} onUpdate={updateDay} isOTDay={workDayNum>OT_THRESHOLD} />
               ))
             )}
           </div>
         )}
         {tab==="summary" && (
           <div style={{ animation:"fadeIn 0.2s ease" }}>
-            <SummaryTab totals={totals} workDays={workDays} vacDays={vacDays}
-              fleet={fleet} setFleet={setFleet} baseDays={baseDays}
-              baselineHrs={baselineHrs} hasEntries={hasEntries} />
+            <SummaryTab totals={totals} workDays={workDays} vacDays={vacDays} fleet={fleet} setFleet={setFleet} baseDays={baseDays} baselineHrs={baselineHrs} hasEntries={hasEntries} />
           </div>
         )}
       </div>
